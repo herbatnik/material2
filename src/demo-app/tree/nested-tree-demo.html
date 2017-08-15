@@ -1,0 +1,46 @@
+
+
+<md-input-container style="width: 500px;">
+  <textarea mdInput [(ngModel)]="data"></textarea>
+</md-input-container>
+<!--<md-slide-toggle [(ngModel)]="flat">Flat: {{flat}}</md-slide-toggle>-->
+<button md-button (click)="submit()">Submit</button>
+
+<div class="tree-container mat-elevation-z4">
+
+
+  <cdk-tree #tree [dataSource]="dataSource" [treeControl]="treeControl">
+    <!-- Row templates. The columns used are set at the row template level -->
+    <cdk-node *cdkNodeDef="let node" [cdkNode]="node" (click)="currentNode=node">
+      <nested-tree-node [node]="node" [selection]="selection">
+      </nested-tree-node>
+
+
+
+    </cdk-node>
+  </cdk-tree>
+</div>
+
+<div style="margin: 10px">
+  <button md-button color="primary" (click)="expandAll()">Expand All</button>
+  <button md-button color="primary" (click)="collapseAll()">Collapse All</button>
+</div>
+
+<div *ngIf="treeControl">
+  Selected: <span *ngFor="let node of selection.selected">{{node.key}}: {{node.value}}, </span>
+</div>
+
+
+<!--<md-card *ngIf="!!currentNode">-->
+  <!--<md-card-title>Add child node</md-card-title>-->
+  <!--<md-input-container>-->
+    <!--<input mdInput [(ngModel)]="key" placeholder="Key"/>-->
+  <!--</md-input-container>-->
+  <!--<md-input-container>-->
+    <!--<input mdInput [(ngModel)]="value" placeholder="Value"/>-->
+  <!--</md-input-container>-->
+  <!--<span> {{currentNode.key}} </span>-->
+  <!--<button md-button (click)="addChild()">Add Child</button>-->
+<!--</md-card>-->
+
+<!--<button md-button (click)="printNodes()"> PrintNodes</button>-->

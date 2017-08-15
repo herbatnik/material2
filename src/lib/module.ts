@@ -46,6 +46,7 @@ import {MdTableModule} from './table/index';
 import {MdSortModule} from './sort/index';
 import {MdPaginatorModule} from './paginator/index';
 import {MdFormFieldModule} from './form-field/index';
+import {CdkTreeModule} from './tree/index';
 
 const MATERIAL_MODULES = [
   MdAutocompleteModule,
@@ -78,6 +79,7 @@ const MATERIAL_MODULES = [
   MdTabsModule,
   MdToolbarModule,
   MdTooltipModule,
+  CdkTreeModule,
   OverlayModule,
   PortalModule,
   BidiModule,

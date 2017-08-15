@@ -1,0 +1,19 @@
+<li [cdkNestedNode]="node">
+  <div class="single-node">
+    <div style="width: 40px; display: inline-block">
+      <a md-icon-button (click)="toggleExpand(node)" *ngIf="(node.getChildren()) | async">
+        <md-icon>{{treeControl.expanded(node) ? 'keyboard_arrow_down' : 'keyboard_arrow_right' }}</md-icon>
+      </a>
+    </div>
+    <md-checkbox (click)="$event.stopPropagation()"
+                 (change)="selectNode(node, $event)"
+                 [checked]="selected">
+      {{node.key}}
+      <span *ngIf="node.value">
+      : {{node.value}}</span>
+    </md-checkbox>
+  </div>
+  <ul *ngIf="treeControl.expanded(node)">
+    <ng-container cdkNodePlaceholder></ng-container>
+  </ul>
+</li>

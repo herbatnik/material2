@@ -36,6 +36,8 @@ import {DatepickerDemo} from '../datepicker/datepicker-demo';
 import {TableDemo} from '../table/table-demo';
 import {TypographyDemo} from '../typography/typography-demo';
 import {ExpansionDemo} from '../expansion/expansion-demo';
+import {SimpleTreeDemo} from '../tree/simple-tree-demo';
+import {NestedTreeDemo} from '../tree/nested-tree-demo';
 import {DemoApp} from './demo-app';
 import {AccessibilityDemo} from '../a11y/a11y';
 import {ACCESSIBILITY_DEMO_ROUTES} from '../a11y/routes';
@@ -73,6 +75,8 @@ export const DEMO_APP_ROUTES: Routes = [
     {path: 'ripple', component: RippleDemo},
     {path: 'dialog', component: DialogDemo},
     {path: 'tooltip', component: TooltipDemo},
+  {path: 'simple-tree', component: SimpleTreeDemo},
+  {path: 'nested-tree', component: NestedTreeDemo},
     {path: 'snack-bar', component: SnackBarDemo},
     {path: 'platform', component: PlatformDemo},
     {path: 'style', component: StyleDemo},

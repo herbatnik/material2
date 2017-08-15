@@ -49,11 +49,11 @@ export const MD_CHECKBOX_CONTROL_VALUE_ACCESSOR: any = {
 export enum TransitionCheckState {
   /** The initial state of the component before any user interaction. */
   Init,
-  /** The state representing the component when it's becoming checked. */
+    /** The state representing the component when it's becoming checked. */
   Checked,
-  /** The state representing the component when it's becoming unchecked. */
+    /** The state representing the component when it's becoming unchecked. */
   Unchecked,
-  /** The state representing the component when it's becoming indeterminate. */
+    /** The state representing the component when it's becoming indeterminate. */
   Indeterminate
 }
 
@@ -100,8 +100,8 @@ export const _MdCheckboxMixinBase =
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MdCheckbox extends _MdCheckboxMixinBase implements ControlValueAccessor, AfterViewInit,
-    OnDestroy, CanColor, CanDisable, CanDisableRipple {
+export class MdCheckbox extends _MdCheckboxMixinBase
+implements ControlValueAccessor, AfterViewInit, OnDestroy, CanColor, CanDisable, CanDisableRipple {
 
   /**
    * Attached to the aria-label attribute of the host element. In most cases, arial-labelledby will
@@ -303,7 +303,7 @@ export class MdCheckbox extends _MdCheckboxMixinBase implements ControlValueAcce
     }
 
     this._currentAnimationClass = this._getAnimationClassForCheckStateTransition(
-        oldState, newState);
+      oldState, newState);
     this._currentCheckState = newState;
 
     if (this._currentAnimationClass.length > 0) {
@@ -387,7 +387,7 @@ export class MdCheckbox extends _MdCheckboxMixinBase implements ControlValueAcce
   }
 
   private _getAnimationClassForCheckStateTransition(
-      oldState: TransitionCheckState, newState: TransitionCheckState): string {
+    oldState: TransitionCheckState, newState: TransitionCheckState): string {
     let animSuffix: string = '';
 
     switch (oldState) {
@@ -404,15 +404,15 @@ export class MdCheckbox extends _MdCheckboxMixinBase implements ControlValueAcce
         break;
       case TransitionCheckState.Unchecked:
         animSuffix = newState === TransitionCheckState.Checked ?
-            'unchecked-checked' : 'unchecked-indeterminate';
+          'unchecked-checked' : 'unchecked-indeterminate';
         break;
       case TransitionCheckState.Checked:
         animSuffix = newState === TransitionCheckState.Unchecked ?
-            'checked-unchecked' : 'checked-indeterminate';
+          'checked-unchecked' : 'checked-indeterminate';
         break;
       case TransitionCheckState.Indeterminate:
         animSuffix = newState === TransitionCheckState.Checked ?
-            'indeterminate-checked' : 'indeterminate-unchecked';
+          'indeterminate-checked' : 'indeterminate-unchecked';
         break;
     }
 

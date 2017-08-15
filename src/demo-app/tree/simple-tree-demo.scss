@@ -1,0 +1,63 @@
+.tree-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 800px;
+  background: white;
+
+  // Table fills in the remaining area with a scroll
+  cdk-tree {
+    flex: 1 1 auto;
+    overflow: auto;
+  }
+}
+
+.row {
+  display: flex;
+  height: 48px;
+  align-items: center;
+}
+
+.special {
+  border: 1px dotted #e0e0e0;
+  border-width: 0 0 0 1px;
+  z-index: 0;
+}
+
+div.space div {
+  width: 45px;
+  height: 48px;
+  left: 20px;
+  bottom: 20px;
+  position: relative;
+  display: inline-block;
+}
+
+div.space div:last-child {
+  border: 1px dotted #e0e0e0;
+  border-width: 0 0 1px 1px;
+  z-index: 0;
+}
+
+.mat-node-trigger .mat-icon {
+  z-index: 10;
+}
+
+md-icon {
+  cursor: hand;
+}
+
+cdk-node.cdk-keyboard-focused,
+cdk-node.cdk-program-focused {
+  background-color: rgba(0, 0, 0, 0.1);
+  outline-width: 0;
+}
+
+.mat-checkbox {
+  z-index: 10;
+}
+
+.expand-trigger {
+  width: 40px;
+  display: inline-block;
+  z-index: 9;
+}

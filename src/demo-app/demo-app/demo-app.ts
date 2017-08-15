@@ -92,6 +92,8 @@ export class DemoApp {
     {name: 'Platform', route: '/platform'},
     {name: 'Style', route: '/style'},
     {name: 'Typography', route: '/typography'}
+    {name: 'Tree', route: '/simple-tree'},
+    {name: 'Nested tree', route: '/nested-tree'}
   ];
 
   constructor(
