@@ -1,4 +1,5 @@
-import {CollectionViewer, TreeDataSource, NestedNode, TreeControl} from '@angular/material';
+import {TreeDataSource, NestedNode, TreeControl} from '@angular/material';
+import {CollectionViewer} from '@angular/cdk/table';
 import {Observable} from 'rxjs/Observable';
 import {of as ofObservable} from 'rxjs/observable/of';
 import {combineLatest} from 'rxjs/observable/combineLatest';

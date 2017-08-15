@@ -40,6 +40,10 @@ import {PeopleDatabase} from '../table/people-database';
 import {DatepickerDemo} from '../datepicker/datepicker-demo';
 import {TypographyDemo} from '../typography/typography-demo';
 import {ExpansionDemo} from '../expansion/expansion-demo';
+import {SimpleTreeDemo} from '../tree/simple-tree-demo';
+import {SimpleTreeNode} from '../tree/simple-tree-node';
+import {NestedTreeDemo} from '../tree/nested-tree-demo';
+import {NestedTreeNode} from '../tree/nested-tree-node';
 import {DemoMaterialModule} from '../demo-material-module';
 import {
   FullscreenOverlayContainer,
@@ -105,6 +109,10 @@ import {TableHeaderDemo} from '../table/table-header-demo';
     PlatformDemo,
     TypographyDemo,
     ExpansionDemo,
+    SimpleTreeDemo,
+    NestedTreeDemo,
+    SimpleTreeNode,
+    NestedTreeNode,
   ],
   providers: [
     {provide: OverlayContainer, useClass: FullscreenOverlayContainer},

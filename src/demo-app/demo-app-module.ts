@@ -7,12 +7,8 @@ import {ALL_ROUTES} from './demo-app/routes';
 import {EntryApp} from './demo-app/demo-app';
 import {DemoModule} from './demo-app/demo-module';
 import {AccessibilityDemoModule} from './a11y/a11y-module';
-import {SimpleTreeDemo} from './tree/simple-tree-demo';
-import {SimpleTreeNode} from './tree/simple-tree-node';
-import {NestedTreeDemo} from './tree/nested-tree-demo';
-import {NestedTreeNode} from './tree/nested-tree-node';
-  CdkTreeModule,
-    CdkTreeModule,
+
+import {FormsModule, FormControl, Validators} from '@angular/forms';
 
 @NgModule({
   imports: [
@@ -22,13 +18,10 @@ import {NestedTreeNode} from './tree/nested-tree-node';
     DemoModule,
     AccessibilityDemoModule,
     RouterModule.forRoot(ALL_ROUTES),
+    FormsModule
   ],
   declarations: [
-    EntryApp,
-    SimpleTreeDemo,
-    NestedTreeDemo,
-    SimpleTreeNode,
-    NestedTreeNode,
+    EntryApp
   ],
   entryComponents: [
     EntryApp,
@@ -41,4 +34,3 @@ export class DemoAppModule {
     this._appRef.bootstrap(EntryApp);
   }
 }
-

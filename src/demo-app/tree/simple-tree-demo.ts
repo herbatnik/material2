@@ -3,6 +3,7 @@ import {JsonDataSource, JsonNode, JsonFlatNode} from './simple-data-source';
 import {SelectionModel, CdkTree, TreeControl, FlatTreeControl} from '@angular/material';
 import {jsonExample} from './sample-json';
 import {Subscription} from 'rxjs/Subscription';
+import {FormControl, Validators} from '@angular/forms';
 
 @Component({
   moduleId: module.id,
