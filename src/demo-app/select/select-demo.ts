@@ -15,9 +15,11 @@ export class SelectDemo {
   pokemonDisabled = false;
   showSelect = false;
   currentDrink: string;
+  currentDrinkMulti:string[];
   currentPokemon: string[];
   currentPokemonFromGroup: string;
-  searchTerm: string;
+  searchTermSingle: string;
+  searchTermMulti: string;
   currentDigimon: string;
   latestChangeEvent: MdSelectChange;
   floatPlaceholder: string = 'auto';
@@ -45,7 +47,8 @@ export class SelectDemo {
     {value: 'milk-8', viewValue: 'Milk'},
   ];
 
-  filteredDrinks = this.drinks.slice();
+  filteredDrinksSingle = this.drinks.slice();
+  filteredDrinksMulti = this.drinks.slice();
 
   pokemon = [
     {value: 'bulbasaur-0', viewValue: 'Bulbasaur'},
@@ -115,9 +118,15 @@ export class SelectDemo {
     this.currentPokemon = ['eevee-4', 'psyduck-6'];
   }
 
-  filterDrinks() {
-    this.filteredDrinks = this.searchTerm ? this.drinks.filter(item => {
-      return item.viewValue.toLowerCase().indexOf(this.searchTerm.toLowerCase()) > -1;
+  filterDrinksSingle() {
+    this.filteredDrinksSingle = this.searchTermSingle ? this.drinks.filter(item => {
+      return item.viewValue.toLowerCase().indexOf(this.searchTermSingle.toLowerCase()) > -1;
+    }) : this.drinks.slice();
+  }
+
+  filterDrinksMulti() {
+    this.filteredDrinksMulti = this.searchTermMulti ? this.drinks.filter(item => {
+      return item.viewValue.toLowerCase().indexOf(this.searchTermMulti.toLowerCase()) > -1;
     }) : this.drinks.slice();
   }
 }
