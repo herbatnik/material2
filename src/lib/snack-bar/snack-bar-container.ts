@@ -14,6 +14,7 @@ import {
   OnDestroy,
   Renderer2,
   ElementRef,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import {
   trigger,
@@ -26,13 +27,12 @@ import {
 import {
   BasePortalHost,
   ComponentPortal,
-  TemplatePortal,
   PortalHostDirective,
-} from '../core';
-import {MdSnackBarConfig} from './snack-bar-config';
+} from '@angular/cdk/portal';
+import {first} from '@angular/cdk/rxjs';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
-
+import {MdSnackBarConfig} from './snack-bar-config';
 
 
 export type SnackBarState = 'initial' | 'visible' | 'complete' | 'void';
@@ -51,6 +51,7 @@ export const HIDE_ANIMATION = '195ms cubic-bezier(0.0,0.0,0.2,1)';
   selector: 'snack-bar-container',
   templateUrl: 'snack-bar-container.html',
   styleUrls: ['snack-bar-container.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'role': 'alert',
     '[@state]': 'animationState',
@@ -58,6 +59,7 @@ export const HIDE_ANIMATION = '195ms cubic-bezier(0.0,0.0,0.2,1)';
   },
   animations: [
     trigger('state', [
+      state('void', style({transform: 'translateY(100%)'})),
       state('initial', style({transform: 'translateY(100%)'})),
       state('visible', style({transform: 'translateY(0%)'})),
       state('complete', style({transform: 'translateY(100%)'})),
@@ -92,7 +94,7 @@ export class MdSnackBarContainer extends BasePortalHost implements OnDestroy {
   /** Attach a component portal as content to this snack bar container. */
   attachComponentPortal<T>(portal: ComponentPortal<T>): ComponentRef<T> {
     if (this._portalHost.hasAttached()) {
-      throw new Error('Attempting to attach snack bar content after content is already attached');
+      throw Error('Attempting to attach snack bar content after content is already attached');
     }
 
     if (this.snackBarConfig.extraClasses) {
@@ -108,7 +110,7 @@ export class MdSnackBarContainer extends BasePortalHost implements OnDestroy {
 
   /** Attach a template portal as content to this snack bar container. */
   attachTemplatePortal(): Map<string, any> {
-    throw new Error('Not yet implemented');
+    throw Error('Not yet implemented');
   }
 
   /** Handle end of animations, updating the state of the snackbar. */
@@ -167,7 +169,7 @@ export class MdSnackBarContainer extends BasePortalHost implements OnDestroy {
     // because it can cause a memory leak.
     const onExit = this.onExit;
 
-    this._ngZone.onMicrotaskEmpty.first().subscribe(() => {
+    first.call(this._ngZone.onMicrotaskEmpty).subscribe(() => {
       onExit.next();
       onExit.complete();
     });

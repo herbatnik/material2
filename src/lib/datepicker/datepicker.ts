@@ -12,35 +12,62 @@ import {
   Component,
   ComponentRef,
   EventEmitter,
+  Inject,
+  InjectionToken,
   Input,
+  NgZone,
   OnDestroy,
   Optional,
   Output,
   ViewChild,
   ViewContainerRef,
   ViewEncapsulation,
-  NgZone,
 } from '@angular/core';
-import {Overlay} from '../core/overlay/overlay';
-import {OverlayRef} from '../core/overlay/overlay-ref';
-import {ComponentPortal} from '../core/portal/portal';
-import {OverlayState} from '../core/overlay/overlay-state';
-import {Dir} from '../core/rtl/dir';
+import {DOCUMENT} from '@angular/platform-browser';
+import {first} from '@angular/cdk/rxjs';
+import {coerceBooleanProperty} from '@angular/cdk/coercion';
+import {
+  Overlay,
+  OverlayRef,
+  OverlayState,
+  PositionStrategy,
+  RepositionScrollStrategy,
+  // This import is only used to define a generic type. The current TypeScript version incorrectly
+  // considers such imports as unused (https://github.com/Microsoft/TypeScript/issues/14953)
+  // tslint:disable-next-line:no-unused-variable
+  ScrollStrategy,
+} from '@angular/cdk/overlay';
+import {ComponentPortal} from '@angular/cdk/portal';
+import {Directionality} from '@angular/cdk/bidi';
+import {ESCAPE} from '@angular/cdk/keycodes';
 import {MdDialog} from '../dialog/dialog';
 import {MdDialogRef} from '../dialog/dialog-ref';
-import {PositionStrategy} from '../core/overlay/position/position-strategy';
 import {MdDatepickerInput} from './datepicker-input';
 import {Subscription} from 'rxjs/Subscription';
-import {MdDialogConfig} from '../dialog/dialog-config';
 import {DateAdapter} from '../core/datetime/index';
 import {createMissingDateImplError} from './datepicker-errors';
-import {ESCAPE} from '../core/keyboard/keycodes';
 import {MdCalendar} from './calendar';
-import 'rxjs/add/operator/first';
 
 
 /** Used to generate a unique ID for each datepicker instance. */
 let datepickerUid = 0;
+
+/** Injection token that determines the scroll handling while the calendar is open. */
+export const MD_DATEPICKER_SCROLL_STRATEGY =
+    new InjectionToken<() => ScrollStrategy>('md-datepicker-scroll-strategy');
+
+/** @docs-private */
+export function MD_DATEPICKER_SCROLL_STRATEGY_PROVIDER_FACTORY(overlay: Overlay):
+    () => RepositionScrollStrategy {
+  return () => overlay.scrollStrategies.reposition();
+}
+
+/** @docs-private */
+export const MD_DATEPICKER_SCROLL_STRATEGY_PROVIDER = {
+  provide: MD_DATEPICKER_SCROLL_STRATEGY,
+  deps: [Overlay],
+  useFactory: MD_DATEPICKER_SCROLL_STRATEGY_PROVIDER_FACTORY,
+};
 
 
 /**
@@ -57,7 +84,7 @@ let datepickerUid = 0;
   styleUrls: ['datepicker-content.css'],
   host: {
     'class': 'mat-datepicker-content',
-    '[class.mat-datepicker-content-touch]': 'datepicker?.touchUi',
+    '[class.mat-datepicker-content-touch]': 'datepicker.touchUi',
     '(keydown)': '_handleKeydown($event)',
   },
   encapsulation: ViewEncapsulation.None,
@@ -77,16 +104,11 @@ export class MdDatepickerContent<D> implements AfterContentInit {
    * @param event The event.
    */
   _handleKeydown(event: KeyboardEvent): void {
-    switch (event.keyCode) {
-      case ESCAPE:
-        this.datepicker.close();
-        break;
-      default:
-        // Return so that we don't preventDefault on keys that are not explicitly handled.
-        return;
+    if (event.keyCode === ESCAPE) {
+      this.datepicker.close();
+      event.preventDefault();
+      event.stopPropagation();
     }
-
-    event.preventDefault();
   }
 }
 
@@ -99,17 +121,18 @@ export class MdDatepickerContent<D> implements AfterContentInit {
   moduleId: module.id,
   selector: 'md-datepicker, mat-datepicker',
   template: '',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MdDatepicker<D> implements OnDestroy {
   /** The date to open the calendar to initially. */
   @Input()
-  get startAt(): D {
+  get startAt(): D | null {
     // If an explicit startAt is set we start there, otherwise we start at whatever the currently
     // selected value is.
     return this._startAt || (this._datepickerInput ? this._datepickerInput.value : null);
   }
-  set startAt(date: D) { this._startAt = date; }
-  private _startAt: D;
+  set startAt(date: D | null) { this._startAt = date; }
+  private _startAt: D | null;
 
   /** The view that the calendar should start in. */
   @Input() startView: 'month' | 'year' = 'month';
@@ -120,7 +143,20 @@ export class MdDatepicker<D> implements OnDestroy {
    */
   @Input() touchUi = false;
 
-  /** Emits new selected date when selected date changes. */
+  /** Whether the datepicker pop-up should be disabled. */
+  @Input()
+  get disabled() {
+    return this._disabled === undefined ? this._datepickerInput.disabled : this._disabled;
+  }
+  set disabled(value: any) {
+    this._disabled = coerceBooleanProperty(value);
+  }
+  private _disabled: boolean;
+
+  /**
+   * Emits new selected date when selected date changes.
+   * @deprecated Switch to the `dateChange` and `dateInput` binding on the input element.
+   */
   @Output() selectedChanged = new EventEmitter<D>();
 
   /** Whether the calendar is open. */
@@ -130,15 +166,17 @@ export class MdDatepicker<D> implements OnDestroy {
   id = `md-datepicker-${datepickerUid++}`;
 
   /** The currently selected date. */
-  _selected: D = null;
+  get _selected(): D | null { return this._validSelected; }
+  set _selected(value: D | null) { this._validSelected = value; }
+  private _validSelected: D | null = null;
 
   /** The minimum selectable date. */
-  get _minDate(): D {
+  get _minDate(): D | null {
     return this._datepickerInput && this._datepickerInput.min;
   }
 
   /** The maximum selectable date. */
-  get _maxDate(): D {
+  get _maxDate(): D | null {
     return this._datepickerInput && this._datepickerInput.max;
   }
 
@@ -150,7 +188,7 @@ export class MdDatepicker<D> implements OnDestroy {
   private _popupRef: OverlayRef;
 
   /** A reference to the dialog when the calendar is opened as a dialog. */
-  private _dialogRef: MdDialogRef<any>;
+  private _dialogRef: MdDialogRef<any> | null;
 
   /** A portal containing the calendar for this datepicker. */
   private _calendarPortal: ComponentPortal<MdDatepickerContent<D>>;
@@ -158,18 +196,22 @@ export class MdDatepicker<D> implements OnDestroy {
   /** The input element this datepicker is associated with. */
   private _datepickerInput: MdDatepickerInput<D>;
 
+  /** The element that was focused before the datepicker was opened. */
+  private _focusedElementBeforeOpen: HTMLElement | null = null;
+
   private _inputSubscription: Subscription;
 
   constructor(private _dialog: MdDialog,
               private _overlay: Overlay,
               private _ngZone: NgZone,
               private _viewContainerRef: ViewContainerRef,
+              @Inject(MD_DATEPICKER_SCROLL_STRATEGY) private _scrollStrategy,
               @Optional() private _dateAdapter: DateAdapter<D>,
-              @Optional() private _dir: Dir) {
+              @Optional() private _dir: Directionality,
+              @Optional() @Inject(DOCUMENT) private _document: any) {
     if (!this._dateAdapter) {
       throw createMissingDateImplError('DateAdapter');
     }
-
   }
 
   ngOnDestroy() {
@@ -198,20 +240,23 @@ export class MdDatepicker<D> implements OnDestroy {
    */
   _registerInput(input: MdDatepickerInput<D>): void {
     if (this._datepickerInput) {
-      throw new Error('An MdDatepicker can only be associated with a single input.');
+      throw Error('An MdDatepicker can only be associated with a single input.');
     }
     this._datepickerInput = input;
     this._inputSubscription =
-        this._datepickerInput._valueChange.subscribe((value: D) => this._selected = value);
+        this._datepickerInput._valueChange.subscribe((value: D | null) => this._selected = value);
   }
 
   /** Open the calendar. */
   open(): void {
-    if (this.opened) {
+    if (this.opened || this.disabled) {
       return;
     }
     if (!this._datepickerInput) {
-      throw new Error('Attempted to open an MdDatepicker with no associated input.');
+      throw Error('Attempted to open an MdDatepicker with no associated input.');
+    }
+    if (this._document) {
+      this._focusedElementBeforeOpen = this._document.activeElement;
     }
 
     this.touchUi ? this._openAsDialog() : this._openAsPopup();
@@ -233,15 +278,20 @@ export class MdDatepicker<D> implements OnDestroy {
     if (this._calendarPortal && this._calendarPortal.isAttached) {
       this._calendarPortal.detach();
     }
+    if (this._focusedElementBeforeOpen && 'focus' in this._focusedElementBeforeOpen) {
+      this._focusedElementBeforeOpen.focus();
+      this._focusedElementBeforeOpen = null;
+    }
+
     this.opened = false;
   }
 
   /** Open the calendar as a dialog. */
   private _openAsDialog(): void {
-    let config = new MdDialogConfig();
-    config.viewContainerRef = this._viewContainerRef;
-
-    this._dialogRef = this._dialog.open(MdDatepickerContent, config);
+    this._dialogRef = this._dialog.open(MdDatepickerContent, {
+      direction: this._dir ? this._dir.value : 'ltr',
+      viewContainerRef: this._viewContainerRef,
+    });
     this._dialogRef.afterClosed().subscribe(() => this.close());
     this._dialogRef.componentInstance.datepicker = this;
   }
@@ -262,7 +312,7 @@ export class MdDatepicker<D> implements OnDestroy {
       componentRef.instance.datepicker = this;
 
       // Update the position once the calendar has rendered.
-      this._ngZone.onStable.first().subscribe(() => this._popupRef.updatePosition());
+      first.call(this._ngZone.onStable).subscribe(() => this._popupRef.updatePosition());
     }
 
     this._popupRef.backdropClick().subscribe(() => this.close());
@@ -275,7 +325,7 @@ export class MdDatepicker<D> implements OnDestroy {
     overlayState.hasBackdrop = true;
     overlayState.backdropClass = 'md-overlay-transparent-backdrop';
     overlayState.direction = this._dir ? this._dir.value : 'ltr';
-    overlayState.scrollStrategy = this._overlay.scrollStrategies.reposition();
+    overlayState.scrollStrategy = this._scrollStrategy();
 
     this._popupRef = this._overlay.create(overlayState);
   }

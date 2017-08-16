@@ -7,16 +7,24 @@
  */
 
 import {NgModule} from '@angular/core';
-import {OverlayModule, MdCommonModule} from '../core';
-import {PlatformModule} from '../core/platform/index';
-import {MdTooltip, TooltipComponent} from './tooltip';
+import {CommonModule} from '@angular/common';
+import {OverlayModule} from '@angular/cdk/overlay';
+import {PlatformModule} from '@angular/cdk/platform';
+import {MdCommonModule} from '../core';
+import {MdTooltip, TooltipComponent, MD_TOOLTIP_SCROLL_STRATEGY_PROVIDER} from './tooltip';
 
 
 @NgModule({
-  imports: [OverlayModule, MdCommonModule, PlatformModule],
+  imports: [
+    CommonModule,
+    OverlayModule,
+    MdCommonModule,
+    PlatformModule
+  ],
   exports: [MdTooltip, TooltipComponent, MdCommonModule],
   declarations: [MdTooltip, TooltipComponent],
   entryComponents: [TooltipComponent],
+  providers: [MD_TOOLTIP_SCROLL_STRATEGY_PROVIDER],
 })
 export class MdTooltipModule {}
 

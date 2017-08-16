@@ -2,10 +2,9 @@ import {task} from 'gulp';
 import {readFileSync, existsSync} from 'fs';
 import {join} from 'path';
 import {green, red} from 'chalk';
-import {sequenceTask} from '../util/task_helpers';
 import {releasePackages} from './publish';
 import {sync as glob} from 'glob';
-import {buildConfig} from '../packaging/build-config';
+import {buildConfig, sequenceTask} from 'material2-build-tools';
 
 /** Path to the directory where all releases are created. */
 const releasesDir = join(buildConfig.outputDir, 'releases');
@@ -40,7 +39,7 @@ task('validate-release:check-bundles', () => {
 function checkReleasePackage(packageName: string): string[] {
   const bundlePath = join(releasesDir, packageName, '@angular', `${packageName}.js`);
   const bundleContent = readFileSync(bundlePath, 'utf8');
-  let failures = [];
+  let failures: string[] = [];
 
   if (inlineStylesSourcemapRegex.exec(bundleContent) !== null) {
     failures.push('Bundles contain sourcemap references in component styles.');
@@ -62,7 +61,7 @@ function checkMaterialPackage(): string[] {
   const packagePath = join(releasesDir, 'material');
   const prebuiltThemesPath = join(packagePath, 'prebuilt-themes');
   const themingFilePath = join(packagePath, '_theming.scss');
-  const failures = [];
+  const failures: string[] = [];
 
   if (glob('*.css', {cwd: prebuiltThemesPath}).length === 0) {
     failures.push('Prebuilt themes are not present in the Material release output.');

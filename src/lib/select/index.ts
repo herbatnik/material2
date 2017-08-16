@@ -8,9 +8,10 @@
 
 import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {MdSelect} from './select';
+import {MdSelect, MdSelectTrigger, MD_SELECT_SCROLL_STRATEGY_PROVIDER} from './select';
 import {MdSelectHeader} from './select-header';
-import {MdCommonModule, OverlayModule, MdOptionModule} from '../core';
+import {MdCommonModule, MdOptionModule} from '../core';
+import {OverlayModule} from '@angular/cdk/overlay';
 
 
 @NgModule({
@@ -20,8 +21,9 @@ import {MdCommonModule, OverlayModule, MdOptionModule} from '../core';
     MdOptionModule,
     MdCommonModule,
   ],
-  exports: [MdSelect, MdSelectHeader, MdOptionModule, MdCommonModule],
-  declarations: [MdSelect, MdSelectHeader],
+  exports: [MdSelect, MdSelectHeader, MdSelectTrigger, MdOptionModule, MdCommonModule],
+  declarations: [MdSelect, MdSelectHeader, MdSelectTrigger],
+  providers: [MD_SELECT_SCROLL_STRATEGY_PROVIDER]
 })
 export class MdSelectModule {}
 

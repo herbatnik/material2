@@ -8,6 +8,7 @@
 
 import {NgModule, InjectionToken, Optional, Inject, isDevMode} from '@angular/core';
 import {DOCUMENT} from '@angular/platform-browser';
+import {BidiModule} from '@angular/cdk/bidi';
 import {CompatibilityModule} from '../compatibility/compatibility';
 
 
@@ -22,8 +23,8 @@ export const MATERIAL_SANITY_CHECKS = new InjectionToken<boolean>('md-sanity-che
  * This module should be imported to each top-level component module (e.g., MdTabsModule).
  */
 @NgModule({
-  imports: [CompatibilityModule],
-  exports: [CompatibilityModule],
+  imports: [CompatibilityModule, BidiModule],
+  exports: [CompatibilityModule, BidiModule],
   providers: [{
     provide: MATERIAL_SANITY_CHECKS, useValue: true,
   }],

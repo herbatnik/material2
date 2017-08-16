@@ -2,16 +2,11 @@ import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as gulp from 'gulp';
 import * as path from 'path';
-import {yellow} from 'chalk';
-import {buildConfig} from '../packaging/build-config';
+import {buildConfig, sequenceTask} from 'material2-build-tools';
 
 /* Those imports lack typings. */
 const gulpClean = require('gulp-clean');
-const gulpRunSequence = require('run-sequence');
-const gulpSass = require('gulp-sass');
 const gulpConnect = require('gulp-connect');
-const gulpIf = require('gulp-if');
-const gulpCleanCss = require('gulp-clean-css');
 
 // There are no type definitions available for these imports.
 const resolveBin = require('resolve-bin');
@@ -44,17 +39,6 @@ export function ngcBuildTask(tsConfigPath: string) {
   return execNodeTask('@angular/compiler-cli', 'ngc', ['-p', tsConfigPath]);
 }
 
-/** Create a SASS Build Task. */
-export function sassBuildTask(dest: string, root: string, minify = false) {
-  return () => {
-    return gulp.src(_globify(root, '**/*.scss'))
-      .pipe(gulpSass().on('error', gulpSass.logError))
-      .pipe(gulpIf(minify, gulpCleanCss()))
-      .pipe(gulp.dest(dest));
-  };
-}
-
-
 /** Options that can be passed to execTask or execNodeTask. */
 export interface ExecTaskOptions {
   // Whether STDOUT and STDERR messages should be printed.
@@ -65,6 +49,8 @@ export interface ExecTaskOptions {
   errMessage?: string;
   // Environment variables being passed to the child process.
   env?: any;
+  // Whether the task should fail if the process writes to STDERR.
+  failOnStderr?: boolean;
 }
 
 /** Create a task that executes a binary as if from the command line. */
@@ -72,24 +58,23 @@ export function execTask(binPath: string, args: string[], options: ExecTaskOptio
   return (done: (err?: string) => void) => {
     const env = Object.assign({}, process.env, options.env);
     const childProcess = child_process.spawn(binPath, args, {env});
+    const stderrData: string[] = [];
 
     if (!options.silentStdout && !options.silent) {
       childProcess.stdout.on('data', (data: string) => process.stdout.write(data));
     }
 
-    if (!options.silent) {
-      childProcess.stderr.on('data', (data: string) => process.stderr.write(data));
+    if (!options.silent || options.failOnStderr) {
+      childProcess.stderr.on('data', (data: string) => {
+        options.failOnStderr ? stderrData.push(data) : process.stderr.write(data);
+      });
     }
 
     childProcess.on('close', (code: number) => {
-      if (code != 0) {
-        if (options.errMessage === undefined) {
-          done('Process failed with code ' + code);
-        } else {
-          done(options.errMessage);
-        }
+      if (options.failOnStderr && stderrData.length) {
+        done(stderrData.join('\n'));
       } else {
-        done();
+        code != 0 ? done(options.errMessage || `Process failed with code ${code}`) : done();
       }
     });
   };
@@ -104,7 +89,7 @@ export function execNodeTask(packageName: string, executable: string | string[],
                              options: ExecTaskOptions = {}) {
   if (!args) {
     args = <string[]>executable;
-    executable = undefined;
+    executable = '';
   }
 
   return (done: (err: any) => void) => {
@@ -115,7 +100,7 @@ export function execNodeTask(packageName: string, executable: string | string[],
         // Execute the node binary within a new child process using spawn.
         // The binary needs to be `node` because on Windows the shell cannot determine the correct
         // interpreter from the shebang.
-        execTask('node', [binPath].concat(args), options)(done);
+        execTask('node', [binPath].concat(args!), options)(done);
       }
     });
   };
@@ -144,13 +129,10 @@ export function buildAppTask(appName: string) {
     .map(taskName => `:build:${appName}:${taskName}`)
     .filter(taskName => gulp.hasTask(taskName));
 
-  return (done: () => void) => {
-    gulpRunSequence(
-      'material:clean-build',
-      [...buildTasks],
-      done
-    );
-  };
+  return sequenceTask(
+    'material:clean-build',
+    [...buildTasks]
+  );
 }
 
 /**
@@ -166,31 +148,19 @@ export function serverTask(packagePath: string, livereload = true) {
       root: projectDir,
       livereload: livereload,
       port: 4200,
-      fallback: path.join(packagePath, 'index.html'),
       middleware: () => {
         return [httpRewrite.getMiddleware([
+          // Rewrite the node_modules/ and dist/ folder to the real paths. This is a trick to
+          // avoid that those folders will be rewritten to the specified package path.
           { from: '^/node_modules/(.*)$', to: '/node_modules/$1' },
           { from: '^/dist/(.*)$', to: '/dist/$1' },
-          { from: '^(.*)$', to: `/${relativePath}/$1` }
+          // Rewrite every path that doesn't point to a specific file to the index.html file.
+          // This is necessary for Angular's routing using the HTML5 History API.
+          { from: '^/[^.]+$', to: `/${relativePath}/index.html`},
+          // Rewrite any path that didn't match a pattern before to the specified package path.
+          { from: '^(.*)$', to: `/${relativePath}/$1` },
         ])];
       }
     });
-  };
-}
-
-/** Triggers a reload when livereload is enabled and a gulp-connect server is running. */
-export function triggerLivereload() {
-  console.log(yellow('Server: Changes were detected and a livereload was triggered.'));
-  return gulp.src('dist').pipe(gulpConnect.reload());
-}
-
-
-/** Create a task that's a sequence of other tasks. */
-export function sequenceTask(...args: any[]) {
-  return (done: any) => {
-    gulpRunSequence(
-      ...args,
-      done
-    );
   };
 }

@@ -2,8 +2,8 @@ import {spawn} from 'child_process';
 import {existsSync, statSync} from 'fs-extra';
 import {join} from 'path';
 import {task} from 'gulp';
-import {execTask, sequenceTask} from '../util/task_helpers';
-import {buildConfig} from '../packaging/build-config';
+import {execTask} from '../util/task_helpers';
+import {buildConfig, sequenceTask} from 'material2-build-tools';
 import {yellow, green, red, grey} from 'chalk';
 import * as minimist from 'minimist';
 
@@ -31,7 +31,7 @@ task(':publish:whoami', execTask('npm', ['whoami'], {
 task(':publish:logout', execTask('npm', ['logout']));
 
 
-function _execNpmPublish(label: string, packageName: string): Promise<{}> {
+function _execNpmPublish(label: string, packageName: string): Promise<{}> | undefined {
   const packageDir = join(buildConfig.outputDir, 'releases', packageName);
 
   if (!statSync(packageDir).isDirectory()) {
@@ -50,7 +50,12 @@ function _execNpmPublish(label: string, packageName: string): Promise<{}> {
   console.log(green(`Publishing ${packageName}...`));
 
   const command = 'npm';
-  const args = ['publish', '--access', 'public', label ? `--tag` : undefined, label || undefined];
+  const args = ['publish', '--access', 'public'];
+
+  if (label) {
+    args.push('--tag', label);
+  }
+
   return new Promise((resolve, reject) => {
     console.log(grey(`Executing: ${command} ${args.join(' ')}`));
     if (argv['dry']) {

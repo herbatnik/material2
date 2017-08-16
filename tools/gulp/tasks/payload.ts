@@ -1,9 +1,11 @@
 import {task} from 'gulp';
 import {join} from 'path';
 import {statSync} from 'fs';
+import {sync as glob} from 'glob';
 import {isTravisBuild, isTravisMasterBuild} from '../util/travis-ci';
-import {buildConfig} from '../packaging/build-config';
+import {buildConfig} from 'material2-build-tools';
 import {openFirebaseDashboardApp, openFirebaseDashboardAppAsGuest} from '../util/firebase';
+import {spawnSync} from 'child_process';
 import * as firebaseAdmin from 'firebase-admin';
 
 
@@ -24,10 +26,10 @@ task('payload', ['material:clean-build'], async () => {
     material_fesm_2015: getBundleSize('material.js'),
     material_fesm_2014: getBundleSize('material.es5.js'),
     // CDK bundles
-    cdk_umd: getBundleSize('cdk.umd.js'),
-    cdk_umd_minified_uglify: getBundleSize('cdk.umd.min.js'),
-    cdk_fesm_2015: getBundleSize('cdk.js'),
-    cdk_fesm_2014: getBundleSize('cdk.es5.js'),
+    cdk_umd: getBundleSize('cdk*.umd.js'),
+    cdk_umd_minified_uglify: getBundleSize('cdk*.umd.min.js'),
+    cdk_fesm_2015: getBundleSize('cdk.js') + getBundleSize('cdk/!(*.es5).js'),
+    cdk_fesm_2014: getBundleSize('cdk.es5.js') + getBundleSize('cdk/*.es5.js'),
   };
 
   // Print the results to the console, so we can read it from the CI.
@@ -51,12 +53,12 @@ task('payload', ['material:clean-build'], async () => {
     // Disconnect database connection because Firebase otherwise prevents Gulp from exiting.
     firebaseApp.delete();
   }
-
 });
 
 /** Returns the size of the given library bundle. */
 function getBundleSize(bundleName: string) {
-  return getFilesize(join(bundlesDir, bundleName));
+  return glob(bundleName, {cwd: bundlesDir})
+      .reduce((sum, fileName) => sum + getFilesize(join(bundlesDir, fileName)), 0);
 }
 
 /** Returns the size of a file in kilobytes. */
@@ -78,13 +80,16 @@ async function calculatePayloadDiff(database: firebaseAdmin.database.Database, c
     return;
   }
 
-  const previousPayload = await getLastPayloadResults(database);
+  const previousSha = getCommitFromPreviousPayloadUpload();
+  const previousPayload = await getPayloadResults(database, previousSha);
 
   if (!previousPayload) {
     console.warn('There are no previous payload results uploaded. Cannot calculate payload ' +
       'difference for this job');
     return;
   }
+
+  console.log(`Comparing payload against payload results from SHA ${previousSha}`);
 
   // Calculate the payload diffs by subtracting the previous size of the FESM ES2015 bundles.
   const cdkFullSize = currentPayload.cdk_fesm_2015;
@@ -123,7 +128,7 @@ async function updateGithubStatus(commitSha: string, packageName: string, packag
       if (err) {
         reject(`Dashboard Error ${err.toString()}`);
       } else {
-        console.info('Dashboard Response:', JSON.parse(body).message);
+        console.info(`Dashboard Response (${response.statusCode}): ${body}`);
         resolve(response.statusCode);
       }
     });
@@ -138,16 +143,34 @@ async function uploadPayloadResults(database: firebaseAdmin.database.Database, c
   }
 }
 
-/** Gets the last payload uploaded from previous Travis builds. */
-async function getLastPayloadResults(database: firebaseAdmin.database.Database) {
-  const snapshot = await database.ref('payloads')
-    .orderByChild('timestamp')
-    .limitToLast(1)
-    .once('value');
+/** Gets payload results of the specified commit sha. */
+async function getPayloadResults(database: firebaseAdmin.database.Database, commitSha: string) {
+  const snapshot = await database.ref('payloads').child(commitSha).once('value');
 
-  // The value of the DataSnapshot is an object with the SHA as a key. Later only the
-  // first value of the object will be returned because the SHA is unnecessary.
-  const results = snapshot.val();
+  if (snapshot.exists()) {
+    return snapshot.val();
+  } else {
+    console.error(`There is no payload data uploaded for SHA ${commitSha}`);
+  }
+}
 
-  return snapshot.hasChildren() ? results[Object.keys(results)[0]] : null;
+/** Gets the SHA of the commit where the payload was uploaded before this Travis Job started. */
+function getCommitFromPreviousPayloadUpload(): string {
+  if (isTravisMasterBuild()) {
+    const commitRange = process.env['TRAVIS_COMMIT_RANGE'];
+    // In some situations, Travis will include multiple commits in a single Travis Job. This means
+    // that we can't just resolve the previous commit by using the parent commit of HEAD.
+    // By resolving the amount of commits inside of the current Travis Job, we can figure out
+    // how many commits before HEAD the last Travis Job ran.
+    const commitCount = spawnSync('git', ['rev-list', '--count', commitRange]).stdout
+      .toString().trim();
+    // With the amount of commits inside of the current Travis Job, we can query Git to print
+    // the SHA of the commit that ran before this Travis Job was created.
+    return spawnSync('git', ['rev-parse', `HEAD~${commitCount}`]).stdout.toString().trim();
+  } else {
+    // Travis applies the changes of Pull Requests in new branches. This means that resolving
+    // the commit that previously ran on the target branch (mostly "master") can be done
+    // by just loading the SHA of the most recent commit in the target branch.
+    return spawnSync('git', ['rev-parse', process.env['TRAVIS_BRANCH']]).stdout.toString().trim();
+  }
 }

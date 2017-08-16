@@ -1,11 +1,9 @@
-import {task, watch} from 'gulp';
-import {
-  sassBuildTask, tsBuildTask, copyTask, buildAppTask, sequenceTask, triggerLivereload,
-  serverTask
-} from '../util/task_helpers';
+import {task} from 'gulp';
+import {tsBuildTask, copyTask, buildAppTask, serverTask} from '../util/task_helpers';
 import {join} from 'path';
-import {copyFiles} from '../util/copy-files';
-import {buildConfig} from '../packaging/build-config';
+import {
+  buildConfig, copyFiles, buildScssTask, sequenceTask, watchFiles
+} from 'material2-build-tools';
 
 // These imports don't have any typings provided.
 const firebaseTools = require('firebase-tools');
@@ -30,21 +28,20 @@ const appVendors = [
 const vendorGlob = `+(${appVendors.join('|')})/**/*.+(html|css|js|map)`;
 
 task(':watch:devapp', () => {
-  watch(join(appDir, '**/*.ts'), [':build:devapp:ts', triggerLivereload]);
-  watch(join(appDir, '**/*.scss'), [':build:devapp:scss', triggerLivereload]);
-  watch(join(appDir, '**/*.html'), [':build:devapp:assets', triggerLivereload]);
+  watchFiles(join(appDir, '**/*.ts'), [':build:devapp:ts']);
+  watchFiles(join(appDir, '**/*.scss'), [':build:devapp:scss']);
+  watchFiles(join(appDir, '**/*.html'), [':build:devapp:assets']);
 
   // The themes for the demo-app are built by the demo-app using the SCSS mixins from Material.
-  // Therefore when the CSS files have been changed the SCSS mixins have been refreshed and
-  // copied over. Rebuilt the theme CSS using the updated SCSS mixins.
-  watch(join(materialOutPath, '**/*.css'), [':build:devapp:scss', triggerLivereload]);
+  // Therefore when SCSS files have been changed, the custom theme needs to be rebuilt.
+  watchFiles(join(materialOutPath, '**/*.scss'), [':build:devapp:scss']);
 });
 
 /** Path to the demo-app tsconfig file. */
 const tsconfigPath = join(appDir, 'tsconfig-build.json');
 
 task(':build:devapp:ts', tsBuildTask(tsconfigPath));
-task(':build:devapp:scss', sassBuildTask(outDir, appDir));
+task(':build:devapp:scss', buildScssTask(outDir, appDir));
 task(':build:devapp:assets', copyTask(appDir, outDir));
 task('build:devapp', buildAppTask('devapp'));
 

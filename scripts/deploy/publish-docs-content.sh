@@ -3,7 +3,16 @@
 # Publish material2 docs assets to the material2-docs-content repo
 # material.angular.io will pull from this assets repo to get the latest docs
 
+# The script should immediately exit if any command in the script fails.
+set -e
+
 cd "$(dirname $0)/../../"
+
+if [ -z ${MATERIAL2_DOCS_CONTENT_TOKEN} ]; then
+  echo "Error: No access token for GitHub could be found." \
+       "Please set the environment variable 'MATERIAL2_DOCS_CONTENT_TOKEN'."
+  exit 1
+fi
 
 docsPath="./dist/docs"
 packagePath="./dist/releases/material-examples"
@@ -25,7 +34,7 @@ commitMessage="$(git log --oneline -n 1)"
 # create directory and clone test repo
 rm -rf $repoPath
 mkdir -p $repoPath
-git clone $repoUrl $repoPath
+git clone $repoUrl $repoPath --depth 1
 
 # Clean out repo directory and copy contents of dist/docs into it
 rm -rf $repoPath/*
@@ -81,6 +90,6 @@ git config credential.helper "store --file=.git/credentials"
 echo "https://${MATERIAL2_DOCS_CONTENT_TOKEN}:@github.com" > .git/credentials
 
 git add -A
-git commit -m "$commitMessage"
+git commit --allow-empty -m "$commitMessage"
 git tag "$commitSha"
 git push origin master --tags

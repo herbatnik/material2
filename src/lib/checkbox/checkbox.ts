@@ -22,14 +22,14 @@ import {
   ViewEncapsulation,
 } from '@angular/core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
-import {coerceBooleanProperty} from '../core/coercion/boolean-property';
+import {coerceBooleanProperty} from '@angular/cdk/coercion';
 import {FocusOrigin, FocusOriginMonitor, MdRipple, RippleRef} from '../core';
 import {mixinDisabled, CanDisable} from '../core/common-behaviors/disabled';
 import {CanColor, mixinColor} from '../core/common-behaviors/color';
+import {CanDisableRipple, mixinDisableRipple} from '../core/common-behaviors/disable-ripple';
 
-
-/** Monotonically increasing integer used to auto-generate unique ids for checkbox components. */
-let nextId = 0;
+// Increasing integer for generating unique ids for checkbox components.
+let nextUniqueId = 0;
 
 /**
  * Provider Expression that allows md-checkbox to register as a ControlValueAccessor.
@@ -66,10 +66,12 @@ export class MdCheckboxChange {
 }
 
 // Boilerplate for applying mixins to MdCheckbox.
+/** @docs-private */
 export class MdCheckboxBase {
   constructor(public _renderer: Renderer2, public _elementRef: ElementRef) {}
 }
-export const _MdCheckboxMixinBase = mixinColor(mixinDisabled(MdCheckboxBase), 'accent');
+export const _MdCheckboxMixinBase =
+  mixinColor(mixinDisableRipple(mixinDisabled(MdCheckboxBase)), 'accent');
 
 
 /**
@@ -87,18 +89,20 @@ export const _MdCheckboxMixinBase = mixinColor(mixinDisabled(MdCheckboxBase), 'a
   styleUrls: ['checkbox.css'],
   host: {
     'class': 'mat-checkbox',
+    '[id]': 'id',
     '[class.mat-checkbox-indeterminate]': 'indeterminate',
     '[class.mat-checkbox-checked]': 'checked',
     '[class.mat-checkbox-disabled]': 'disabled',
     '[class.mat-checkbox-label-before]': 'labelPosition == "before"',
   },
   providers: [MD_CHECKBOX_CONTROL_VALUE_ACCESSOR],
-  inputs: ['disabled', 'color'],
+  inputs: ['disabled', 'disableRipple', 'color'],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MdCheckbox extends _MdCheckboxMixinBase
-    implements ControlValueAccessor, AfterViewInit, OnDestroy, CanColor, CanDisable {
+export class MdCheckbox extends _MdCheckboxMixinBase implements ControlValueAccessor, AfterViewInit,
+    OnDestroy, CanColor, CanDisable, CanDisableRipple {
+
   /**
    * Attached to the aria-label attribute of the host element. In most cases, arial-labelledby will
    * take precedence so this may be omitted.
@@ -108,23 +112,15 @@ export class MdCheckbox extends _MdCheckboxMixinBase
   /**
    * Users can specify the `aria-labelledby` attribute which will be forwarded to the input element
    */
-  @Input('aria-labelledby') ariaLabelledby: string = null;
+  @Input('aria-labelledby') ariaLabelledby: string | null = null;
 
-  /** A unique id for the checkbox. If one is not supplied, it is auto-generated. */
-  @Input() id: string = `md-checkbox-${++nextId}`;
+  private _uniqueId: string = `md-checkbox-${++nextUniqueId}`;
 
-  /** Whether the ripple effect on click should be disabled. */
-  private _disableRipple: boolean;
+  /** A unique id for the checkbox input. If none is supplied, it will be auto-generated. */
+  @Input() id: string = this._uniqueId;
 
-  /** Whether the ripple effect for this checkbox is disabled. */
-  @Input()
-  get disableRipple(): boolean { return this._disableRipple; }
-  set disableRipple(value) { this._disableRipple = coerceBooleanProperty(value); }
-
-  /** ID of the native input element inside `<md-checkbox>` */
-  get inputId(): string {
-    return `input-${this.id}`;
-  }
+  /** Returns the unique id for the visual hidden input. */
+  get inputId(): string { return `${this.id || this._uniqueId}-input`; }
 
   private _required: boolean;
 
@@ -155,7 +151,7 @@ export class MdCheckbox extends _MdCheckboxMixinBase
   @Input() tabIndex: number = 0;
 
   /** Name value will be applied to the input element if present */
-  @Input() name: string = null;
+  @Input() name: string | null = null;
 
   /** Event emitted when the checkbox's `checked` value changes. */
   @Output() change: EventEmitter<MdCheckboxChange> = new EventEmitter<MdCheckboxChange>();
@@ -189,7 +185,7 @@ export class MdCheckbox extends _MdCheckboxMixinBase
   private _controlValueAccessorChangeFn: (value: any) => void = () => {};
 
   /** Reference to the focused state ripple. */
-  private _focusRipple: RippleRef;
+  private _focusRipple: RippleRef | null;
 
   constructor(renderer: Renderer2,
               elementRef: ElementRef,
@@ -392,31 +388,32 @@ export class MdCheckbox extends _MdCheckboxMixinBase
 
   private _getAnimationClassForCheckStateTransition(
       oldState: TransitionCheckState, newState: TransitionCheckState): string {
-    let animSuffix: string;
+    let animSuffix: string = '';
 
     switch (oldState) {
-    case TransitionCheckState.Init:
-      // Handle edge case where user interacts with checkbox that does not have [(ngModel)] or
-      // [checked] bound to it.
-      if (newState === TransitionCheckState.Checked) {
-        animSuffix = 'unchecked-checked';
-      } else if (newState == TransitionCheckState.Indeterminate) {
-        animSuffix = 'unchecked-indeterminate';
-      } else {
-        return '';
-      }
-      break;
-    case TransitionCheckState.Unchecked:
-      animSuffix = newState === TransitionCheckState.Checked ?
-          'unchecked-checked' : 'unchecked-indeterminate';
-      break;
-    case TransitionCheckState.Checked:
-      animSuffix = newState === TransitionCheckState.Unchecked ?
-          'checked-unchecked' : 'checked-indeterminate';
-      break;
-    case TransitionCheckState.Indeterminate:
-      animSuffix = newState === TransitionCheckState.Checked ?
-          'indeterminate-checked' : 'indeterminate-unchecked';
+      case TransitionCheckState.Init:
+        // Handle edge case where user interacts with checkbox that does not have [(ngModel)] or
+        // [checked] bound to it.
+        if (newState === TransitionCheckState.Checked) {
+          animSuffix = 'unchecked-checked';
+        } else if (newState == TransitionCheckState.Indeterminate) {
+          animSuffix = 'unchecked-indeterminate';
+        } else {
+          return '';
+        }
+        break;
+      case TransitionCheckState.Unchecked:
+        animSuffix = newState === TransitionCheckState.Checked ?
+            'unchecked-checked' : 'unchecked-indeterminate';
+        break;
+      case TransitionCheckState.Checked:
+        animSuffix = newState === TransitionCheckState.Unchecked ?
+            'checked-unchecked' : 'checked-indeterminate';
+        break;
+      case TransitionCheckState.Indeterminate:
+        animSuffix = newState === TransitionCheckState.Checked ?
+            'indeterminate-checked' : 'indeterminate-unchecked';
+        break;
     }
 
     return `mat-checkbox-anim-${animSuffix}`;

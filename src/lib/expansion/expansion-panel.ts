@@ -14,6 +14,11 @@ import {
   ViewEncapsulation,
   Optional,
   forwardRef,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  SimpleChanges,
+  OnChanges,
+  OnDestroy,
 } from '@angular/core';
 import {
   trigger,
@@ -25,6 +30,7 @@ import {
 import {MdAccordion, MdAccordionDisplayMode} from './accordion';
 import {AccordionItem} from './accordion-item';
 import {UniqueSelectionDispatcher} from '../core';
+import {Subject} from 'rxjs/Subject';
 
 
 /** MdExpansionPanel's states. */
@@ -47,6 +53,7 @@ export const EXPANSION_PANEL_ANIMATION_TIMING = '225ms cubic-bezier(0.4,0.0,0.2,
   selector: 'md-expansion-panel, mat-expansion-panel',
   templateUrl: './expansion-panel.html',
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'class': 'mat-expansion-panel',
     '[class.mat-expanded]': 'expanded',
@@ -57,26 +64,29 @@ export const EXPANSION_PANEL_ANIMATION_TIMING = '225ms cubic-bezier(0.4,0.0,0.2,
   ],
   animations: [
     trigger('bodyExpansion', [
-      state('collapsed', style({height: '0px'})),
-      state('expanded', style({height: '*'})),
+      state('collapsed', style({height: '0px', visibility: 'hidden'})),
+      state('expanded', style({height: '*', visibility: 'visible'})),
       transition('expanded <=> collapsed', animate(EXPANSION_PANEL_ANIMATION_TIMING)),
     ]),
     trigger('displayMode', [
-      state('collapsed', style({margin: '0'})),
+      state('flat, collapsed', style({margin: '0'})),
       state('default', style({margin: '16px 0'})),
-      state('flat', style({margin: '0'})),
       transition('flat <=> collapsed, default <=> collapsed, flat <=> default',
                  animate(EXPANSION_PANEL_ANIMATION_TIMING)),
     ]),
   ],
 })
-export class MdExpansionPanel extends AccordionItem {
+export class MdExpansionPanel extends AccordionItem implements OnChanges, OnDestroy {
   /** Whether the toggle indicator should be hidden. */
   @Input() hideToggle: boolean = false;
 
+  /** Stream that emits for changes in `@Input` properties. */
+  _inputChanges = new Subject<SimpleChanges>();
+
   constructor(@Optional() @Host() accordion: MdAccordion,
+              _changeDetectorRef: ChangeDetectorRef,
               _uniqueSelectionDispatcher: UniqueSelectionDispatcher) {
-    super(accordion, _uniqueSelectionDispatcher);
+    super(accordion, _changeDetectorRef, _uniqueSelectionDispatcher);
     this.accordion = accordion;
   }
 
@@ -89,19 +99,25 @@ export class MdExpansionPanel extends AccordionItem {
   }
 
   /** Gets the panel's display mode. */
-  _getDisplayMode(): MdAccordionDisplayMode | MdExpansionPanelState {
-    if (!this.expanded) {
-      return this._getExpandedState();
-    }
+  _getDisplayMode(): MdAccordionDisplayMode | MdExpansionPanelState | 'void' {
     if (this.accordion) {
-      return this.accordion.displayMode;
+      return this.expanded ? this.accordion.displayMode : this._getExpandedState();
     }
-    return this._getExpandedState();
+
+    return 'void';
   }
 
   /** Gets the expanded state string. */
   _getExpandedState(): MdExpansionPanelState {
     return this.expanded ? 'expanded' : 'collapsed';
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    this._inputChanges.next(changes);
+  }
+
+  ngOnDestroy() {
+    this._inputChanges.complete();
   }
 }
 

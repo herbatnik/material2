@@ -8,16 +8,13 @@
 
 import {NgModule} from '@angular/core';
 
-import {
-  A11yModule,
-  MdCommonModule,
-  MdRippleModule,
-  ObserveContentModule,
-  OverlayModule,
-  PortalModule,
-  RtlModule
-} from './core/index';
+import {OverlayModule} from '@angular/cdk/overlay';
+import {A11yModule} from '@angular/cdk/a11y';
+import {BidiModule} from '@angular/cdk/bidi';
+import {ObserversModule} from '@angular/cdk/observers';
+import {PortalModule} from '@angular/cdk/portal';
 
+import {MdCommonModule, MdRippleModule} from './core';
 import {MdButtonToggleModule} from './button-toggle/index';
 import {MdButtonModule} from './button/index';
 import {MdCheckboxModule} from './checkbox/index';
@@ -44,8 +41,11 @@ import {PlatformModule} from './core/platform/index';
 import {MdAutocompleteModule} from './autocomplete/index';
 import {StyleModule} from './core/style/index';
 import {MdDatepickerModule} from './datepicker/index';
-import {CdkDataTableModule} from './core/data-table/index';
 import {MdExpansionModule} from './expansion/index';
+import {MdTableModule} from './table/index';
+import {MdSortModule} from './sort/index';
+import {MdPaginatorModule} from './paginator/index';
+import {MdFormFieldModule} from './form-field/index';
 
 const MATERIAL_MODULES = [
   MdAutocompleteModule,
@@ -55,13 +55,16 @@ const MATERIAL_MODULES = [
   MdChipsModule,
   MdCheckboxModule,
   MdDatepickerModule,
+  MdTableModule,
   MdDialogModule,
   MdExpansionModule,
+  MdFormFieldModule,
   MdGridListModule,
   MdIconModule,
   MdInputModule,
   MdListModule,
   MdMenuModule,
+  MdPaginatorModule,
   MdProgressBarModule,
   MdProgressSpinnerModule,
   MdRadioModule,
@@ -71,18 +74,18 @@ const MATERIAL_MODULES = [
   MdSliderModule,
   MdSlideToggleModule,
   MdSnackBarModule,
+  MdSortModule,
   MdTabsModule,
   MdToolbarModule,
   MdTooltipModule,
   OverlayModule,
   PortalModule,
-  RtlModule,
+  BidiModule,
   StyleModule,
   A11yModule,
   PlatformModule,
   MdCommonModule,
-  ObserveContentModule,
-  CdkDataTableModule
+  ObserversModule
 ];
 
 /** @deprecated */

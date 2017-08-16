@@ -8,7 +8,6 @@
 
 import {
   Component,
-  HostBinding,
   ChangeDetectionStrategy,
   OnDestroy,
   Input,
@@ -57,6 +56,7 @@ type EasingFn = (currentTime: number, startValue: number,
 export class MdProgressSpinnerCssMatStyler {}
 
 // Boilerplate for applying mixins to MdProgressSpinner.
+/** @docs-private */
 export class MdProgressSpinnerBase {
   constructor(public _renderer: Renderer2, public _elementRef: ElementRef) {}
 }
@@ -71,7 +71,9 @@ export const _MdProgressSpinnerMixinBase = mixinColor(MdProgressSpinnerBase, 'pr
   host: {
     'role': 'progressbar',
     '[attr.aria-valuemin]': '_ariaValueMin',
-    '[attr.aria-valuemax]': '_ariaValueMax'
+    '[attr.aria-valuemax]': '_ariaValueMax',
+    '[attr.aria-valuenow]': 'value',
+    '[attr.mode]': 'mode',
   },
   inputs: ['color'],
   templateUrl: 'progress-spinner.html',
@@ -85,7 +87,7 @@ export class MdProgressSpinner extends _MdProgressSpinnerMixinBase
   private _lastAnimationId: number = 0;
 
   /** The id of the indeterminate interval. */
-  private _interdeterminateInterval: number;
+  private _interdeterminateInterval: number | null;
 
   /** The SVG <path> node that is used to draw the circle. */
   @ViewChild('path') private _path: ElementRef;
@@ -114,8 +116,11 @@ export class MdProgressSpinner extends _MdProgressSpinnerMixinBase
     return this._interdeterminateInterval;
   }
   /** @docs-private */
-  set interdeterminateInterval(interval: number) {
-    clearInterval(this._interdeterminateInterval);
+  set interdeterminateInterval(interval: number | null) {
+    if (this._interdeterminateInterval) {
+      clearInterval(this._interdeterminateInterval);
+    }
+
     this._interdeterminateInterval = interval;
   }
 
@@ -128,11 +133,12 @@ export class MdProgressSpinner extends _MdProgressSpinnerMixinBase
 
   /** Value of the progress circle. It is bound to the host as the attribute aria-valuenow. */
   @Input()
-  @HostBinding('attr.aria-valuenow')
   get value() {
     if (this.mode == 'determinate') {
       return this._value;
     }
+
+    return 0;
   }
   set value(v: number) {
     if (v != null && this.mode == 'determinate') {
@@ -148,11 +154,8 @@ export class MdProgressSpinner extends _MdProgressSpinnerMixinBase
    * Input must be one of the values from ProgressMode, defaults to 'determinate'.
    * mode is bound to the host as the attribute host.
    */
-  @HostBinding('attr.mode')
   @Input()
-  get mode() {
-    return this._mode;
-  }
+  get mode() { return this._mode; }
   set mode(mode: ProgressSpinnerMode) {
     if (mode !== this._mode) {
       if (mode === 'indeterminate') {
@@ -281,18 +284,12 @@ export class MdProgressSpinner extends _MdProgressSpinnerMixinBase
   inputs: ['color'],
   templateUrl: 'progress-spinner.html',
   styleUrls: ['progress-spinner.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MdSpinner extends MdProgressSpinner implements OnDestroy {
-
+export class MdSpinner extends MdProgressSpinner {
   constructor(elementRef: ElementRef, ngZone: NgZone, renderer: Renderer2) {
     super(renderer, elementRef, ngZone);
     this.mode = 'indeterminate';
-  }
-
-  ngOnDestroy() {
-    // The `ngOnDestroy` from `MdProgressSpinner` should be called explicitly, because
-    // in certain cases Angular won't call it (e.g. when using AoT and in unit tests).
-    super.ngOnDestroy();
   }
 }
 
@@ -351,7 +348,7 @@ function materialEase(currentTime: number, startValue: number,
  * @return A string for an SVG path representing a circle filled from the starting point to the
  *    percentage value provided.
  */
-function getSvgArc(currentValue: number, rotation: number, strokeWidth: number) {
+function getSvgArc(currentValue: number, rotation: number, strokeWidth: number): string {
   let startPoint = rotation || 0;
   let radius = 50;
   let pathRadius = radius - strokeWidth;

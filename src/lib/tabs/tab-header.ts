@@ -21,19 +21,22 @@ import {
   AfterContentInit,
   OnDestroy,
   NgZone,
+  Renderer2,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
 } from '@angular/core';
-import {RIGHT_ARROW, LEFT_ARROW, ENTER, Dir, LayoutDirection, coerceBooleanProperty} from '../core';
+import {Directionality, Direction} from '@angular/cdk/bidi';
+import {RIGHT_ARROW, LEFT_ARROW, ENTER} from '@angular/cdk/keycodes';
+import {auditTime, startWith} from '@angular/cdk/rxjs';
+import {Subscription} from 'rxjs/Subscription';
+import {of as observableOf} from 'rxjs/observable/of';
+import {merge} from 'rxjs/observable/merge';
+import {fromEvent} from 'rxjs/observable/fromEvent';
 import {MdTabLabelWrapper} from './tab-label-wrapper';
 import {MdInkBar} from './ink-bar';
-import {Subscription} from 'rxjs/Subscription';
-import {Observable} from 'rxjs/Observable';
-import {applyCssTransform} from '../core/style/apply-transform';
-import 'rxjs/add/operator/map';
-import 'rxjs/add/operator/auditTime';
-import 'rxjs/add/observable/of';
-import 'rxjs/add/observable/merge';
-import 'rxjs/add/operator/startWith';
-
+import {CanDisableRipple, mixinDisableRipple} from '../core/common-behaviors/disable-ripple';
+import {RxChain, debounceTime} from '@angular/cdk/rxjs';
+import {Platform} from '@angular/cdk/platform';
 
 /**
  * The directions that scrolling can go in when the header's tabs exceed the header width. 'After'
@@ -48,6 +51,11 @@ export type ScrollDirection = 'after' | 'before';
  */
 const EXAGGERATED_OVERSCROLL = 60;
 
+// Boilerplate for applying mixins to MdTabHeader.
+/** @docs-private */
+export class MdTabHeaderBase {}
+export const _MdTabHeaderMixinBase = mixinDisableRipple(MdTabHeaderBase);
+
 /**
  * The header of the tab group which displays a list of all the tabs in the tab group. Includes
  * an ink bar that follows the currently selected tab. When the tabs list's width exceeds the
@@ -60,16 +68,19 @@ const EXAGGERATED_OVERSCROLL = 60;
   selector: 'md-tab-header, mat-tab-header',
   templateUrl: 'tab-header.html',
   styleUrls: ['tab-header.css'],
+  inputs: ['disableRipple'],
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'class': 'mat-tab-header',
     '[class.mat-tab-header-pagination-controls-enabled]': '_showPaginationControls',
     '[class.mat-tab-header-rtl]': "_getLayoutDirection() == 'rtl'",
   }
 })
-export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDestroy {
-  @ContentChildren(MdTabLabelWrapper) _labelWrappers: QueryList<MdTabLabelWrapper>;
+export class MdTabHeader extends _MdTabHeaderMixinBase
+    implements AfterContentChecked, AfterContentInit, OnDestroy, CanDisableRipple {
 
+  @ContentChildren(MdTabLabelWrapper) _labelWrappers: QueryList<MdTabLabelWrapper>;
   @ViewChild(MdInkBar) _inkBar: MdInkBar;
   @ViewChild('tabListContainer') _tabListContainer: ElementRef;
   @ViewChild('tabList') _tabList: ElementRef;
@@ -84,7 +95,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   private _selectedIndexChanged = false;
 
   /** Combines listeners that will re-align the ink bar whenever they're invoked. */
-  private _realignInkBar: Subscription = null;
+  private _realignInkBar: Subscription | null = null;
 
   /** Whether the controls for pagination should be displayed */
   _showPaginationControls = false;
@@ -106,6 +117,9 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
 
   private _selectedIndex: number = 0;
 
+  /** subscription for the window resize handler */
+  private _resizeSubscription: Subscription | null;
+
   /** The index of the active tab. */
   @Input()
   get selectedIndex(): number { return this._selectedIndex; }
@@ -116,28 +130,34 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     this._focusIndex = value;
   }
 
-  /** Whether ripples for the tab-header labels should be disabled or not. */
-  @Input()
-  get disableRipple(): boolean { return this._disableRipple; }
-  set disableRipple(value) { this._disableRipple = coerceBooleanProperty(value); }
-  private _disableRipple: boolean = false;
-
   /** Event emitted when the option is selected. */
   @Output() selectFocusedIndex = new EventEmitter();
 
   /** Event emitted when a label is focused. */
   @Output() indexFocused = new EventEmitter();
 
-  constructor(
-    private _elementRef: ElementRef,
-    private _ngZone: NgZone,
-    @Optional() private _dir: Dir) { }
+  constructor(private _elementRef: ElementRef,
+              private _ngZone: NgZone,
+              private _renderer: Renderer2,
+              private _changeDetectorRef: ChangeDetectorRef,
+              @Optional() private _dir: Directionality,
+              platform: Platform) {
+    super();
+
+    if (platform.isBrowser) {
+      // TODO: Add library level window listener https://goo.gl/y25X5M
+      this._resizeSubscription = RxChain.from(fromEvent(window, 'resize'))
+        .call(debounceTime, 150)
+        .subscribe(() => this._checkPaginationEnabled());
+    }
+  }
 
   ngAfterContentChecked(): void {
     // If the number of tab labels have changed, check if scrolling should be enabled
     if (this._tabLabelCount != this._labelWrappers.length) {
       this._updatePagination();
       this._tabLabelCount = this._labelWrappers.length;
+      this._changeDetectorRef.markForCheck();
     }
 
     // If the selected index has changed, scroll to the label and check if the scrolling controls
@@ -147,6 +167,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
       this._checkScrollingControls();
       this._alignInkBarToSelectedTab();
       this._selectedIndexChanged = false;
+      this._changeDetectorRef.markForCheck();
     }
 
     // If the scroll distance has been changed (tab selected, focused, scroll controls activated),
@@ -154,6 +175,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     if (this._scrollDistanceChanged) {
       this._updateTabScrollPosition();
       this._scrollDistanceChanged = false;
+      this._changeDetectorRef.markForCheck();
     }
   }
 
@@ -176,12 +198,12 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
    */
   ngAfterContentInit() {
     this._realignInkBar = this._ngZone.runOutsideAngular(() => {
-      let dirChange = this._dir ? this._dir.dirChange : Observable.of(null);
+      let dirChange = this._dir ? this._dir.change : observableOf(null);
       let resize = typeof window !== 'undefined' ?
-          Observable.fromEvent(window, 'resize').auditTime(10) :
-          Observable.of(null);
+          auditTime.call(fromEvent(window, 'resize'), 10) :
+          observableOf(null);
 
-      return Observable.merge(dirChange, resize).startWith(null).subscribe(() => {
+      return startWith.call(merge(dirChange, resize), null).subscribe(() => {
         this._updatePagination();
         this._alignInkBarToSelectedTab();
       });
@@ -193,6 +215,11 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
       this._realignInkBar.unsubscribe();
       this._realignInkBar = null;
     }
+
+    if (this._resizeSubscription) {
+      this._resizeSubscription.unsubscribe();
+      this._resizeSubscription = null;
+    }
   }
 
   /**
@@ -201,6 +228,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   _onContentChanges() {
     this._updatePagination();
     this._alignInkBarToSelectedTab();
+    this._changeDetectorRef.markForCheck();
   }
 
   /**
@@ -218,7 +246,6 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
 
     this._focusIndex = value;
     this.indexFocused.emit(value);
-
     this._setTabFocus(value);
   }
 
@@ -233,7 +260,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     if (!this._labelWrappers) { return true; }
 
     const tab = this._labelWrappers ? this._labelWrappers.toArray()[index] : null;
-    return tab && !tab.disabled;
+    return !!tab && !tab.disabled;
   }
 
   /**
@@ -253,6 +280,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
       // should be the full width minus the offset width.
       const containerEl = this._tabListContainer.nativeElement;
       const dir = this._getLayoutDirection();
+
       if (dir == 'ltr') {
         containerEl.scrollLeft = 0;
       } else {
@@ -268,6 +296,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   _moveFocus(offset: number) {
     if (this._labelWrappers) {
       const tabs: MdTabLabelWrapper[] = this._labelWrappers.toArray();
+
       for (let i = this.focusIndex + offset; i < tabs.length && i >= 0; i += offset) {
         if (this._isValidIndex(i)) {
           this.focusIndex = i;
@@ -288,18 +317,17 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   }
 
   /** The layout direction of the containing app. */
-  _getLayoutDirection(): LayoutDirection {
+  _getLayoutDirection(): Direction {
     return this._dir && this._dir.value === 'rtl' ? 'rtl' : 'ltr';
   }
 
   /** Performs the CSS transformation on the tab list that will cause the list to scroll. */
   _updateTabScrollPosition() {
-    let translateX = this.scrollDistance + 'px';
-    if (this._getLayoutDirection() == 'ltr') {
-      translateX = '-' + translateX;
-    }
+    const scrollDistance = this.scrollDistance;
+    const translateX = this._getLayoutDirection() === 'ltr' ? -scrollDistance : scrollDistance;
 
-    applyCssTransform(this._tabList.nativeElement, `translate3d(${translateX}, 0, 0)`);
+    this._renderer.setStyle(this._tabList.nativeElement, 'transform',
+        `translate3d(${translateX}px, 0, 0)`);
   }
 
   /** Sets the distance in pixels that the tab header should be transformed in the X-axis. */
@@ -309,10 +337,9 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     // Mark that the scroll distance has changed so that after the view is checked, the CSS
     // transformation can move the header.
     this._scrollDistanceChanged = true;
-
     this._checkScrollingControls();
   }
-  get scrollDistance(): number { return this._scrollDistance;  }
+  get scrollDistance(): number { return this._scrollDistance; }
 
   /**
    * Moves the tab list in the 'before' or 'after' direction (towards the beginning of the list or
@@ -336,9 +363,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
    * should be called sparingly.
    */
   _scrollToLabel(labelIndex: number) {
-    const selectedLabel = this._labelWrappers
-        ? this._labelWrappers.toArray()[labelIndex]
-        :  null;
+    const selectedLabel = this._labelWrappers ? this._labelWrappers.toArray()[labelIndex] : null;
 
     if (!selectedLabel) { return; }
 
@@ -381,6 +406,8 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     if (!this._showPaginationControls) {
       this.scrollDistance = 0;
     }
+
+    this._changeDetectorRef.markForCheck();
   }
 
   /**
@@ -396,6 +423,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
     // Check if the pagination arrows should be activated.
     this._disableScrollBefore = this.scrollDistance == 0;
     this._disableScrollAfter = this.scrollDistance == this._getMaxScrollDistance();
+    this._changeDetectorRef.markForCheck();
   }
 
   /**
@@ -408,7 +436,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   _getMaxScrollDistance(): number {
     const lengthOfTabList = this._tabList.nativeElement.scrollWidth;
     const viewLength = this._tabListContainer.nativeElement.offsetWidth;
-    return lengthOfTabList - viewLength;
+    return (lengthOfTabList - viewLength) || 0;
   }
 
   /** Tells the ink-bar to align itself to the current label wrapper */

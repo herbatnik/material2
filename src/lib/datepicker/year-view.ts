@@ -69,13 +69,13 @@ export class MdYearView<D> implements AfterContentInit {
   _yearLabel: string;
 
   /** The month in this year that today falls on. Null if today is in a different year. */
-  _todayMonth: number;
+  _todayMonth: number | null;
 
   /**
    * The month in this year that the selected Date falls on.
    * Null if the selected Date is in a different year.
    */
-  _selectedMonth: number;
+  _selectedMonth: number | null;
 
   constructor(@Optional() public _dateAdapter: DateAdapter<D>,
               @Optional() @Inject(MD_DATE_FORMATS) private _dateFormats: MdDateFormats) {
@@ -95,9 +95,11 @@ export class MdYearView<D> implements AfterContentInit {
 
   /** Handles when a new month is selected. */
   _monthSelected(month: number) {
+    let daysInMonth = this._dateAdapter.getNumDaysInMonth(
+        this._dateAdapter.createDate(this._dateAdapter.getYear(this.activeDate), month, 1));
     this.selectedChange.emit(this._dateAdapter.createDate(
         this._dateAdapter.getYear(this.activeDate), month,
-        this._dateAdapter.getDate(this.activeDate)));
+        Math.min(this._dateAdapter.getDate(this.activeDate), daysInMonth)));
   }
 
   /** Initializes this month view. */
@@ -108,7 +110,7 @@ export class MdYearView<D> implements AfterContentInit {
 
     let monthNames = this._dateAdapter.getMonthNames('short');
     // First row of months only contains 5 elements so we can fit the year label on the same row.
-    this._months = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9, 10, 11]].map(row => row.map(
+    this._months = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]].map(row => row.map(
         month => this._createCellForMonth(month, monthNames[month])));
   }
 

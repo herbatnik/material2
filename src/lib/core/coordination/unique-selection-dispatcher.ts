@@ -36,17 +36,27 @@ export class UniqueSelectionDispatcher {
     }
   }
 
-  /** Listen for future changes to item selection. */
-  listen(listener: UniqueSelectionDispatcherListener) {
+  /**
+   * Listen for future changes to item selection.
+   * @return Function used to deregister listener
+   **/
+  listen(listener: UniqueSelectionDispatcherListener): () => void {
     this._listeners.push(listener);
+    return () => {
+      this._listeners = this._listeners.filter((registered: UniqueSelectionDispatcherListener) => {
+        return listener !== registered;
+      });
+    };
   }
 }
 
+/** @docs-private */
 export function UNIQUE_SELECTION_DISPATCHER_PROVIDER_FACTORY(
     parentDispatcher: UniqueSelectionDispatcher) {
   return parentDispatcher || new UniqueSelectionDispatcher();
 }
 
+/** @docs-private */
 export const UNIQUE_SELECTION_DISPATCHER_PROVIDER = {
   // If there is already a dispatcher available, use that. Otherwise, provide a new one.
   provide: UniqueSelectionDispatcher,

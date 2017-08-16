@@ -9,14 +9,13 @@
 import {NgModule} from '@angular/core';
 import {HAMMER_GESTURE_CONFIG} from '@angular/platform-browser';
 import {CommonModule} from '@angular/common';
-import {FormsModule} from '@angular/forms';
 import {MdCommonModule, GestureConfig, StyleModule} from '../core';
 import {MdSlider} from './slider';
-import {RtlModule} from '../core/rtl/dir';
+import {BidiModule} from '../core/bidi/index';
 
 
 @NgModule({
-  imports: [CommonModule, FormsModule, MdCommonModule, StyleModule, RtlModule],
+  imports: [CommonModule, MdCommonModule, StyleModule, BidiModule],
   exports: [MdSlider, MdCommonModule],
   declarations: [MdSlider],
   providers: [{provide: HAMMER_GESTURE_CONFIG, useClass: GestureConfig}]
