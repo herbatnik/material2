@@ -606,6 +606,9 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
       event.keyCode === HOME ? this._keyManager.setFirstItemActive() :
                                this._keyManager.setLastItemActive();
     } else {
+      if(this.header && this.header.hasFocus){
+        return;
+      }
       this._keyManager.onKeydown(event);
     }
   }
@@ -719,12 +722,17 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
       return option.value != null && option.value === value;
     });
 
+    let headerHasFocus = this.header && this.header.hasFocus
+
     if (correspondingOption) {
       isUserInput ? correspondingOption._selectViaInteraction() : correspondingOption.select();
       this._selectionModel.select(correspondingOption);
       this._keyManager.setActiveItem(optionsArray.indexOf(correspondingOption));
     }
 
+    if(headerHasFocus){
+      this.header.focus();
+    }
     return correspondingOption;
   }
 
