@@ -129,5 +129,40 @@ Space above cards: <input type="number" [formControl]="topHeightCtrl">
     </md-card>
   </div>
 
+  <md-card *ngIf="showSelect">
+    <md-card-subtitle>Header Test - single select</md-card-subtitle>
+    <md-card-content>
+      <md-select placeholder="Drink" [(ngModel)]="currentDrink" #selectWitHeader="mdSelect">
+        <md-select-header>
+          <input type="search" [(ngModel)]="searchTermSingle" role="combobox" [attr.aria-owns]="selectWitHeader.panelId"
+            (ngModelChange)="filterDrinksSingle()" placeholder="Search for a drink"/>
+        </md-select-header>
+
+        <md-option *ngFor="let drink of filteredDrinksSingle" [value]="drink.value" [disabled]="drink.disabled">
+          {{ drink.viewValue }}
+        </md-option>
+
+      </md-select>
+    </md-card-content>
+  </md-card>
+
+  <md-card *ngIf="showSelect">
+    <md-card-subtitle>Header Test - multi select</md-card-subtitle>
+      <md-card-content>
+      <md-select multiple placeholder="Drink" [(ngModel)]="currentDrinkMulti" #selectWitHeaderMulti="mdSelect">
+        <md-select-header>
+          <input type="search" [(ngModel)]="searchTermMulti" role="combobox" [attr.aria-owns]="selectWitHeaderMulti.panelId"
+            (ngModelChange)="filterDrinksMulti()" placeholder="Search for a drink"/>
+        </md-select-header>
+
+        <md-option *ngFor="let drink of filteredDrinksMulti" [value]="drink.value" [disabled]="drink.disabled">
+          {{ drink.viewValue }}
+        </md-option>
+
+      </md-select>
+    </md-card-content>
+  </md-card>
+
+
 </div>
 <div style="height: 500px">This div is for testing scrolled selects.</div>

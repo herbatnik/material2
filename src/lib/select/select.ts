@@ -32,6 +32,7 @@ import {
 } from '@angular/core';
 import {ControlValueAccessor, FormGroupDirective, NgControl, NgForm} from '@angular/forms';
 import {DOWN_ARROW, END, ENTER, HOME, SPACE, UP_ARROW} from '@angular/cdk/keycodes';
+import {MdSelectHeader} from './select-header';
 import {FocusKeyManager} from '@angular/cdk/a11y';
 import {Directionality} from '@angular/cdk/bidi';
 import {coerceBooleanProperty} from '@angular/cdk/coercion';
@@ -162,6 +163,9 @@ export const _MdSelectMixinBase = mixinColor(mixinDisabled(MdSelectBase), 'prima
 export class MdSelectTrigger {}
 
 
+/** Counter for unique panel IDs. */
+let panelIds = 0;
+
 @Component({
   moduleId: module.id,
   selector: 'md-select, mat-select',
@@ -256,6 +260,9 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
   /** The IDs of child options to be passed to the aria-owns attribute. */
   _optionIds: string = '';
 
+  /** Unique ID for the panel element. Useful for a11y in projected content (e.g. the header). */
+  panelId: string = 'md-select-panel-' + panelIds++;
+
   /** The value of the select panel's transform-origin property. */
   _transformOrigin: string = 'top';
 
@@ -308,6 +315,9 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
   /** Classes to be passed to the select panel. Supports the same syntax as `ngClass`. */
   @Input() panelClass: string|string[]|Set<string>|{[key: string]: any};
 
+  /** The select's header, if specified. */
+  @ContentChild(MdSelectHeader) header: MdSelectHeader;
+  
   /** User-supplied override of the trigger element. */
   @ContentChild(MdSelectTrigger) customTrigger: MdSelectTrigger;
 
@@ -596,6 +606,9 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
       event.keyCode === HOME ? this._keyManager.setFirstItemActive() :
                                this._keyManager.setLastItemActive();
     } else {
+      if(this.header && this.header.hasFocus){
+        return;
+      }
       this._keyManager.onKeydown(event);
     }
   }
@@ -666,7 +679,7 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
    */
   private _setScrollTop(): void {
     const scrollContainer =
-        this.overlayDir.overlayRef.overlayElement.querySelector('.mat-select-panel');
+        this.overlayDir.overlayRef.overlayElement.querySelector('.mat-select-content');
     scrollContainer!.scrollTop = this._scrollTop;
   }
 
@@ -709,12 +722,17 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
       return option.value != null && option.value === value;
     });
 
+    let headerHasFocus = this.header && this.header.hasFocus
+
     if (correspondingOption) {
       isUserInput ? correspondingOption._selectViaInteraction() : correspondingOption.select();
       this._selectionModel.select(correspondingOption);
       this._keyManager.setActiveItem(optionsArray.indexOf(correspondingOption));
     }
 
+    if(headerHasFocus){
+      this.header.focus();
+    }
     return correspondingOption;
   }
 
@@ -909,7 +927,8 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
       // and the trigger element, then multiply it by -1 to ensure the panel moves
       // in the correct direction up the page.
       this._offsetY = (SELECT_ITEM_HEIGHT - SELECT_TRIGGER_HEIGHT) / 2 * -1 -
-          (this._getLabelCountBeforeOption(0) * SELECT_ITEM_HEIGHT);
+          (this._getLabelCountBeforeOption(0) * SELECT_ITEM_HEIGHT) -
+          (this.header ? SELECT_ITEM_HEIGHT : 0);
     }
 
     this._checkOverlayWithinViewport(maxScroll);
@@ -1041,7 +1060,8 @@ export class MdSelect extends _MdSelectMixinBase implements AfterContentInit, On
     // The final offset is the option's offset from the top, adjusted for the height
     // difference, multiplied by -1 to ensure that the overlay moves in the correct
     // direction up the page.
-    return optionOffsetFromPanelTop * -1 - SELECT_OPTION_HEIGHT_ADJUSTMENT;
+    return optionOffsetFromPanelTop * -1 - SELECT_OPTION_HEIGHT_ADJUSTMENT -
+        (this.header ? SELECT_ITEM_HEIGHT : 0);
   }
 
   /**

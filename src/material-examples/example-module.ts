@@ -84,6 +84,8 @@ import {ToolbarMultirowExample} from './toolbar-multirow/toolbar-multirow-exampl
 import {ToolbarOverviewExample} from './toolbar-overview/toolbar-overview-example';
 import {TooltipOverviewExample} from './tooltip-overview/tooltip-overview-example';
 import {TooltipPositionExample} from './tooltip-position/tooltip-position-example';
+import {SelectHeaderExample} from './select-header/select-header-example';
+
 
 export const EXAMPLE_COMPONENTS = {
   'autocomplete-display': {
@@ -392,6 +394,7 @@ export const EXAMPLE_COMPONENTS = {
     additionalFiles: null,
     selectorName: null
   },
+  'select-header': {title: 'Select header', component: SelectHeaderExample},
   'slide-toggle-configurable': {
     title: 'Configurable slide-toggle',
     component: SlideToggleConfigurableExample,
@@ -563,6 +566,7 @@ export const EXAMPLE_LIST = [
   RadioNgModelExample,
   RadioOverviewExample,
   SelectFormExample,
+  SelectHeaderExample,
   SelectOverviewExample,
   SidenavFabExample,
   SidenavOverviewExample,

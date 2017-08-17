@@ -21,9 +21,6 @@ $mat-menu-icon-margin: 16px !default;
   &:not([class*='mat-elevation-z']) {
     @include mat-elevation($default-elevation);
   }
-
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;   // for momentum scroll on mobile
 }
 
 @mixin mat-menu-item-base() {
@@ -94,4 +91,9 @@ $mat-menu-icon-margin: 16px !default;
       transform-origin: left bottom;
     }
   }
+}
+
+@mixin mat-menu-scrollable() {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;   // for momentum scroll on mobile
 }

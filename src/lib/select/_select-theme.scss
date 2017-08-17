@@ -29,6 +29,10 @@
     color: mat-color($foreground, secondary-text);
   }
 
+  .mat-select-header {
+    color: mat-color($foreground, divider);
+  }
+
   .mat-select-underline {
     background-color: $underline-color;
   }
